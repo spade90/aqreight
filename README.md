@@ -205,6 +205,42 @@ ai-policy-helper-starter-pack/
 
 ---
 
+## What This System Can Do
+
+### Answer policy and product questions with citations
+Ask any question in plain English — the system retrieves the most relevant chunks from your Markdown documents, passes them to an LLM, and returns a grounded answer. Every answer includes **citation badges** showing exactly which document (and which section) the information came from. Click a badge to expand the raw source chunk inline.
+
+### Ingest your own documents
+Drop any Markdown files into the `data/` folder and click **Ingest docs** (or `POST /api/ingest`). The system parses headings into logical sections, splits them into overlapping chunks, embeds each chunk, and stores them in Qdrant. Re-ingesting is safe — the collection is rebuilt from scratch.
+
+### Hybrid retrieval for policy text
+Retrieval combines four signals so keyword-heavy policy text is found even when the query is phrased differently:
+- **Dense similarity** — SHA-1 hash-based 384-dim embeddings for semantic proximity
+- **Keyword overlap** — normalized unigram matching
+- **Phrase overlap** — bigram matching for multi-word terms ("East Malaysia", "change of mind")
+- **Title/section boost** — rewards chunks from sections whose heading matches the query
+- **Intent boost** — up to +0.22 when the query hints at a known policy category (shipping, warranty, returns, PDPA, catalog)
+
+### Diversity-aware reranking (MMR)
+Maximal Marginal Relevance (λ=0.72) ensures the top-k returned chunks are both relevant *and* diverse — avoiding three near-identical chunks from the same section.
+
+### PDPA-compliant output masking
+All responses (both the LLM answer and raw source chunks shown in the UI) are automatically scrubbed for Malaysian personally identifiable information: email addresses, IC numbers (XXXXXX-XX-XXXX), local phone numbers, and street addresses. Masked values are replaced with `[REDACTED]`.
+
+### Offline-first, no cloud dependency required
+By default (`LLM_PROVIDER=stub`) the system runs 100% locally with no external API calls. The stub LLM returns a deterministic template answer with citations — enough to demo retrieval, masking, and the full UI flow without any API key.
+
+### One-command Docker setup
+`docker compose up --build` starts all three services (Qdrant, backend, frontend) with health checks and correct startup ordering. A fresh pull builds and runs with zero manual steps.
+
+### Live metrics dashboard
+`GET /api/metrics` (and the sidebar in the UI) shows indexed doc/chunk counts, total queries served, average and p95 retrieval and generation latencies, and the active embedding/LLM model names.
+
+### Pluggable LLM backend
+Switch `LLM_PROVIDER=openrouter` (and set `OPENROUTER_API_KEY`) to route through any model available on OpenRouter — GPT-4o-mini by default, configurable via `LLM_MODEL`. The backend and retrieval pipeline are identical either way.
+
+---
+
 ## Trade-offs & Design Decisions
 
 ### Embedder: local hash-based vs sentence-transformers
